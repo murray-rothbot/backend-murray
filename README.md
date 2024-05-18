@@ -49,5 +49,4 @@ $ npm run check
 
 ## License
 
-This project is released under the terms of the MIT license.
-See https://opensource.org/licenses/MIT.
+This project is licensed under the [MIT License](LICENSE) file for details.
