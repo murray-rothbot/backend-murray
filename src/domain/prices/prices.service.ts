@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, ServiceUnavailableException } from '@nestjs/common'
 import Murray from 'murray-js'
 
 import { MessageResponseDto } from '../../shared/dtos'
@@ -11,15 +11,23 @@ export class PricesService {
 
   constructor() {}
 
+  private requireTicker<T>(data: T | null | undefined, symbol: string): T {
+    if (data == null) {
+      throw new ServiceUnavailableException(`Murray upstream returned no data for ${symbol} ticker`)
+    }
+    return data
+  }
+
   async getRawTickers(): Promise<MessageResponseDto> {
     const tickers = [{ currency: 'USD' }, { currency: 'BRL' }]
 
     let response: any = {}
 
     for (const { currency } of tickers) {
-      const { price, change24h } = await this._murray.prices.getTicker({
+      const ticker = await this._murray.prices.getTicker({
         symbol: `BTC${currency}` as 'BTCUSD' | 'BTCBRL',
       })
+      const { price, change24h } = this.requireTicker(ticker, `BTC${currency}`)
 
       response[currency] = {
         priceChangePercent: change24h,
@@ -44,9 +52,10 @@ export class PricesService {
     }
 
     for (const { currency, flag } of tickers) {
-      const { price, symbol, source, change24h } = await this._murray.prices.getTicker({
+      const ticker = await this._murray.prices.getTicker({
         symbol: `BTC${currency}` as 'BTCUSD' | 'BTCBRL',
       })
+      const { price, symbol, source, change24h } = this.requireTicker(ticker, `BTC${currency}`)
 
       const name = `${flag} ${symbol}`
       const arrow = change24h > 0 ? '🔼' : '🔽'

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, ServiceUnavailableException } from '@nestjs/common'
 
 import Murray from 'murray-js'
 
@@ -11,6 +11,13 @@ export class BlockchainService {
   _murray = new Murray()
 
   constructor() {}
+
+  private requireData<T>(data: T | null | undefined, context: string): T {
+    if (data == null) {
+      throw new ServiceUnavailableException(`Murray upstream returned no data for ${context}`)
+    }
+    return data
+  }
 
   async getAddress({ address }): Promise<MessageResponseDto> {
     const { data } = await this._murray.blockchain.getAddressDetails({ address })
@@ -115,7 +122,8 @@ export class BlockchainService {
   }
 
   async getHalving(): Promise<any> {
-    const { data } = await this._murray.blockchain.getBlock()
+    const { data: rawData } = await this._murray.blockchain.getBlock()
+    const data = this.requireData(rawData, 'blockchain block')
     const { height } = data
 
     const BLOCKS_PER_ERA = 210000
@@ -223,7 +231,8 @@ export class BlockchainService {
   }
 
   async getFeesRecommended(): Promise<any> {
-    const { data } = await this._murray.blockchain.getFeesRecommended()
+    const { data: rawData } = await this._murray.blockchain.getFeesRecommended()
+    const data = this.requireData(rawData, 'recommended fees')
 
     const { fastestFee, halfHourFee, hourFee, economyFee, minimumFee } = data
 
