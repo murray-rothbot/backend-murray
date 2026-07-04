@@ -11,6 +11,28 @@ export class MarketService {
 
   constructor() {}
 
+  private async withTransientRetry<T>(operation: () => Promise<T>, attempts = 3): Promise<T> {
+    let lastError: unknown
+
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        return await operation()
+      } catch (error) {
+        lastError = error
+        const message = error instanceof Error ? error.message : String(error)
+        const isTransient = ['ECONNRESET', 'ECONNABORTED', 'ETIMEDOUT', 'EAI_AGAIN'].some((code) =>
+          message.includes(code),
+        )
+
+        if (!isTransient || attempt === attempts) {
+          throw error
+        }
+      }
+    }
+
+    throw lastError
+  }
+
   async getTicker({ symbol }) {
     return this._murray.prices.getTicker({ symbol: symbol.toUpperCase() })
   }
@@ -19,7 +41,7 @@ export class MarketService {
     const requests = []
 
     // Get current block
-    const block = this._murray.blockchain.getBlock()
+    const block = this.withTransientRetry(() => this._murray.blockchain.getBlock())
 
     requests.push(block)
 
