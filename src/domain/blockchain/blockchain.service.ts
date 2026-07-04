@@ -4,7 +4,7 @@ import Murray from 'murray-js'
 
 import { MessageResponseDto } from '../../shared/dtos'
 
-import { formatNumber, formatSATS, formatSatsBtc } from 'src/shared/utils'
+import { formatNumber, formatSATS, formatSatsBtc } from '../../shared/utils'
 
 @Injectable()
 export class BlockchainService {
@@ -217,7 +217,8 @@ export class BlockchainService {
   }
 
   async getDifficulty(): Promise<any> {
-    const { data } = await this._murray.blockchain.getHashrate()
+    const { data: rawData } = await this.withTransientRetry(() => this._murray.blockchain.getHashrate())
+    const data = this.requireData(rawData, 'hashrate')
 
     const {
       remainingBlocks,

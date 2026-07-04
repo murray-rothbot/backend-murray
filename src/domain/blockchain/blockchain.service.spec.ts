@@ -41,4 +41,28 @@ describe('BlockchainService upstream null handling', () => {
     expect(getFeesRecommended).toHaveBeenCalledTimes(2)
   })
 
+
+  it('retries transient difficulty hashrate fetch failures before formatting the response', async () => {
+    const service = new BlockchainService()
+    const getHashrate = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('Failed to fetch hashrate: Error: read ECONNRESET'))
+      .mockResolvedValueOnce({
+        data: {
+          remainingBlocks: 10,
+          progressPercent: 99.5,
+          estimatedRetargetDate: '2026-07-04',
+          difficultyChange: 1.23,
+          previousRetarget: -0.42,
+        },
+      })
+
+    ;(service as any)._murray = { blockchain: { getHashrate } }
+
+    await expect(service.getDifficulty()).resolves.toMatchObject({
+      title: '🦾 Next Difficulty Adjustment',
+    })
+    expect(getHashrate).toHaveBeenCalledTimes(2)
+  })
+
 })
