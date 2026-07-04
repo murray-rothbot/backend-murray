@@ -17,4 +17,28 @@ describe('BlockchainService upstream null handling', () => {
     await expect(service.getFeesRecommended()).rejects.toBeInstanceOf(ServiceUnavailableException)
     await expect(service.getFeesRecommended()).rejects.toThrow('Murray upstream returned no data for recommended fees')
   })
+
+  it('retries transient recommended fees fetch failures before formatting the response', async () => {
+    const service = new BlockchainService()
+    const getFeesRecommended = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('Failed to fetch fees recommended: Error: read ECONNRESET'))
+      .mockResolvedValueOnce({
+        data: {
+          fastestFee: 1.5,
+          halfHourFee: 0.932,
+          hourFee: 0.52,
+          economyFee: 0.2,
+          minimumFee: 0.1,
+        },
+      })
+
+    ;(service as any)._murray = { blockchain: { getFeesRecommended } }
+
+    await expect(service.getFeesRecommended()).resolves.toMatchObject({
+      title: '💸 Network Fees',
+    })
+    expect(getFeesRecommended).toHaveBeenCalledTimes(2)
+  })
+
 })

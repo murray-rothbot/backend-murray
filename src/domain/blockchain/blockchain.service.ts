@@ -19,6 +19,28 @@ export class BlockchainService {
     return data
   }
 
+  private async withTransientRetry<T>(operation: () => Promise<T>, attempts = 3): Promise<T> {
+    let lastError: unknown
+
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        return await operation()
+      } catch (error) {
+        lastError = error
+        const message = error instanceof Error ? error.message : String(error)
+        const isTransient = ['ECONNRESET', 'ECONNABORTED', 'ETIMEDOUT', 'EAI_AGAIN'].some((code) =>
+          message.includes(code),
+        )
+
+        if (!isTransient || attempt === attempts) {
+          throw error
+        }
+      }
+    }
+
+    throw lastError
+  }
+
   async getAddress({ address }): Promise<MessageResponseDto> {
     const { data } = await this._murray.blockchain.getAddressDetails({ address })
 
@@ -231,7 +253,7 @@ export class BlockchainService {
   }
 
   async getFeesRecommended(): Promise<any> {
-    const { data: rawData } = await this._murray.blockchain.getFeesRecommended()
+    const { data: rawData } = await this.withTransientRetry(() => this._murray.blockchain.getFeesRecommended())
     const data = this.requireData(rawData, 'recommended fees')
 
     const { fastestFee, halfHourFee, hourFee, economyFee, minimumFee } = data
