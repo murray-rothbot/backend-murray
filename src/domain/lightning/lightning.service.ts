@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { formatNumber, formatSatsBtc } from 'src/shared/utils'
+import { formatNumber, formatSatsBtc } from '../../shared/utils'
 import { MessageResponseDto } from '../../shared/dtos'
 import Murray from 'murray-js'
 

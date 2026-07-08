@@ -3,7 +3,7 @@ import Murray from 'murray-js'
 
 import { MessageResponseDto } from '../../shared/dtos'
 
-import { formatBRL, formatBTC, formatSATS, formatUSD, kFormatter } from 'src/shared/utils'
+import { formatBRL, formatBTC, formatSATS, formatUSD, kFormatter } from '../../shared/utils'
 
 @Injectable()
 export class PricesService {

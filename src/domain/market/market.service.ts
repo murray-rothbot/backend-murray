@@ -1,9 +1,9 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, ServiceUnavailableException } from '@nestjs/common'
 import Murray from 'murray-js'
 
 import { MessageResponseDto } from '../../shared/dtos'
 
-import { formatBRL, formatSATS, formatUSD, kFormatter, calculateSupply } from 'src/shared/utils'
+import { formatBRL, formatSATS, formatUSD, kFormatter, calculateSupply } from '../../shared/utils'
 
 @Injectable()
 export class MarketService {
@@ -11,12 +11,32 @@ export class MarketService {
 
   constructor() {}
 
-  private async withTransientRetry<T>(operation: () => Promise<T>, attempts = 3): Promise<T> {
+  private requireData<T>(data: T | null | undefined, context: string): T {
+    if (data == null) {
+      throw new ServiceUnavailableException(`Murray upstream returned no data for ${context}`)
+    }
+    return data
+  }
+
+  private async withTransientRetry<T>(
+    operation: () => Promise<T>,
+    attempts = 3,
+    context = 'upstream',
+    timeoutMs = 10000,
+  ): Promise<T> {
     let lastError: unknown
 
     for (let attempt = 1; attempt <= attempts; attempt++) {
       try {
-        return await operation()
+        let timeout: NodeJS.Timeout
+        const timeoutPromise = new Promise<T>((_, reject) => {
+          timeout = setTimeout(
+            () => reject(new ServiceUnavailableException(`Murray upstream timed out for ${context}`)),
+            timeoutMs,
+          )
+        })
+
+        return await Promise.race([operation(), timeoutPromise]).finally(() => clearTimeout(timeout))
       } catch (error) {
         lastError = error
         const message = error instanceof Error ? error.message : String(error)
@@ -41,7 +61,7 @@ export class MarketService {
     const requests = []
 
     // Get current block
-    const block = this.withTransientRetry(() => this._murray.blockchain.getBlock())
+    const block = this.withTransientRetry(() => this._murray.blockchain.getBlock(), 3, 'blockchain block')
 
     requests.push(block)
 
@@ -66,9 +86,9 @@ export class MarketService {
     // Run all requests in parallel
     const data = await Promise.all(requests)
 
-    const {
-      data: { height },
-    } = data.shift()
+    const blockResponse = data.shift()
+    const blockData = this.requireData(blockResponse?.data, 'blockchain block')
+    const { height } = blockData
     const supply = calculateSupply(height)
 
     const fields = {}
