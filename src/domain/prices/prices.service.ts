@@ -11,6 +11,14 @@ export class PricesService {
 
   constructor() {}
 
+  private async getTicker(symbol: 'BTCUSD' | 'BTCBRL'): Promise<any> {
+    try {
+      return await this._murray.prices.getTicker({ symbol })
+    } catch {
+      return await this._murray.prices.getTicker({ symbol })
+    }
+  }
+
   private requireTicker<T>(data: T | null | undefined, symbol: string): T {
     if (data == null) {
       throw new ServiceUnavailableException(`Murray upstream returned no data for ${symbol} ticker`)
@@ -24,9 +32,7 @@ export class PricesService {
     let response: any = {}
 
     for (const { currency } of tickers) {
-      const ticker = await this._murray.prices.getTicker({
-        symbol: `BTC${currency}` as 'BTCUSD' | 'BTCBRL',
-      })
+      const ticker = await this.getTicker(`BTC${currency}` as 'BTCUSD' | 'BTCBRL')
       const { price, change24h } = this.requireTicker(ticker, `BTC${currency}`)
 
       response[currency] = {
@@ -52,9 +58,7 @@ export class PricesService {
     }
 
     for (const { currency, flag } of tickers) {
-      const ticker = await this._murray.prices.getTicker({
-        symbol: `BTC${currency}` as 'BTCUSD' | 'BTCBRL',
-      })
+      const ticker = await this.getTicker(`BTC${currency}` as 'BTCUSD' | 'BTCBRL')
       const { price, symbol, source, change24h } = this.requireTicker(ticker, `BTC${currency}`)
 
       const name = `${flag} ${symbol}`
